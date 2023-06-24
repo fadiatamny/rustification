@@ -3,9 +3,11 @@ use env_logger::Env;
 use std::time;
 use std::sync::Mutex;
 
+use sea_orm::{DatabaseConnection, DbErr};
+
 mod user;
 
-async fn connect_to_db() {
+async fn connect_to_db() -> Result<DatabaseConnection, DbErr> {
     use sea_orm::{Database, ConnectOptions};
     let mut opt = ConnectOptions::new("mysql://root:root@localhost:3333/gate".to_owned());
     opt.max_connections(100)
@@ -15,14 +17,13 @@ async fn connect_to_db() {
         .idle_timeout(time::Duration::from_secs(8))
         .max_lifetime(time::Duration::from_secs(8))
         .sqlx_logging(true)
-        .sqlx_logging_level(log::LevelFilter::Info)
-        .set_schema_search_path("my_schema".into()); // Setting default PostgreSQL schema
+        .sqlx_logging_level(log::LevelFilter::Info);
 
     let db = Database::connect(opt).await;
     return db;
 }
 
-struct AppState {
+pub struct AppState {
     db: Mutex<sea_orm::DatabaseConnection>,
 }
 
@@ -30,11 +31,14 @@ struct AppState {
 async fn main() -> std::io::Result<()> {
     use actix_web::{App, HttpServer};
 
-    let db = connect_to_db().await;
+    let db = match connect_to_db().await {
+        Ok(db) => db,
+        Err(error) => panic!("Problem connecting to the database: {:?}", error),
+    };
 
-    // let app_state = AppState {
-    //     db: Mutex::new(connect_to_db().await),
-    // };
+    let app_state = AppState {
+        db: Mutex::new(db)
+    };
 
     // This initializes the env to run in info mode
     env_logger::init_from_env(Env::default().default_filter_or("info"));

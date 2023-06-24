@@ -1,35 +1,27 @@
-use models::Entity as User;
-use models::Model as UserModel;
+use sea_orm::entity::prelude::*;
 
-// add a class that on construction it receives an instance of DatabaseConnection
-pub struct UserService {
-    db: sea_orm::DatabaseConnection,
+use super::models::{Entity as User, Model as UserModel, ModelQuery};
+use sea_orm::{DatabaseConnection, DbErr};
+
+pub async fn list(db: &DatabaseConnection) -> Result<Vec<UserModel>, DbErr> {
+    User::find().all(db).await
 }
 
-impl UserService {
-    pub fn new(db: sea_orm::DatabaseConnection) -> Self {
-        Self { db }
+pub async fn query(db: &DatabaseConnection, model: ModelQuery) -> Result<Vec<UserModel>, DbErr> {
+    let mut rootFinder = User::find();
+
+    if model.id.is_some() {
+        rootFinder = rootFinder.filter(<User as sea_orm::EntityTrait>::Column::Id.eq(model.id));
+    }
+    if model.email.is_some() {
+        rootFinder = rootFinder.filter(<User as sea_orm::EntityTrait>::Column::Email.contains(model.email.unwrap().as_str()));
+    }
+    if model.created_at.is_some() {
+        rootFinder = rootFinder.filter(<User as sea_orm::EntityTrait>::Column::CreatedAt.eq(model.created_at));
+    }
+    if model.updated_at.is_some() {
+        rootFinder = rootFinder.filter(<User as sea_orm::EntityTrait>::Column::UpdatedAt.eq(model.updated_at));
     }
 
-    pub async fn list(&self) -> Vec<UserModel> {
-        let users = User::find().all(&self.db).await?;
-        return users;
-    }
-
-    pub async fn find_like(&self, model: &User) -> Vec<UserModel> {
-        let rootFinder = User::find();
-
-        if model.id {
-            rootFinder = rootFinder.filter(User::Column::Id.eq(model.id));
-        }
-        if model.name {
-            rootFinder = rootFinder.filter(User::Column::Name.contains(model.name.as_str()));
-        }
-
-        return rootFinder
-            .all()
-            .await
-            .unwrap()
-    }
+    return rootFinder.all(db).await;
 }
-
