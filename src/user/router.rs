@@ -1,5 +1,5 @@
-use actix_web::{get, post, Responder, HttpResponse, web};
 use crate::AppState;
+use actix_web::{get, post, web, HttpResponse, Responder};
 
 use super::models::ModelQuery;
 use super::service;
@@ -16,14 +16,15 @@ pub async fn register(data: web::Data<AppState>) -> impl Responder {
 
 #[post("/login")]
 pub async fn login(data: web::Data<AppState>, login: web::Json<ModelQuery>) -> impl Responder {
-    let d = data.db.;
-    let db = match d.as_ref() {
-        Ok(db) => db,
-        Err(error) => return HttpResponse::InternalServerError().body("db error"),
-    };
-
-    let handler = service::query(db, login.into_inner()).await;
-    return HttpResponse::Ok().body("login");
+    let res = service::query(&data.db, login.into_inner()).await;
+    match res {
+        Ok(res) => {
+            return HttpResponse::Ok().json(res);
+        }
+        Err(err) => {
+            return HttpResponse::Ok().body(err.to_string());
+        }
+    }
 }
 
 #[post("/logout")]
@@ -31,10 +32,12 @@ pub async fn logout(data: web::Data<AppState>) -> impl Responder {
     return HttpResponse::Ok().body("logout");
 }
 
-
-pub fn config(cfg:&mut web::ServiceConfig) {
-    cfg.service(register);
-    cfg.service(login);
-    cfg.service(logout);
-    cfg.service(me);
+pub fn config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/authorization")
+            .service(me)
+            .service(register)
+            .service(login)
+            .service(logout),
+    );
 }

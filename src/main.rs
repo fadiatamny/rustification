@@ -1,14 +1,13 @@
 use actix_web::middleware::Logger;
 use env_logger::Env;
 use std::time;
-use std::sync::Mutex;
 
 use sea_orm::{DatabaseConnection, DbErr};
 
 mod user;
 
 async fn connect_to_db() -> Result<DatabaseConnection, DbErr> {
-    use sea_orm::{Database, ConnectOptions};
+    use sea_orm::{ConnectOptions, Database};
     let mut opt = ConnectOptions::new("mysql://root:root@localhost:3333/gate".to_owned());
     opt.max_connections(100)
         .min_connections(5)
@@ -24,26 +23,27 @@ async fn connect_to_db() -> Result<DatabaseConnection, DbErr> {
 }
 
 pub struct AppState {
-    db: Mutex<sea_orm::DatabaseConnection>,
+    db: DatabaseConnection,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    use actix_web::{App, HttpServer};
+    use actix_web::{App, HttpServer, web};
 
     let db = match connect_to_db().await {
         Ok(db) => db,
         Err(error) => panic!("Problem connecting to the database: {:?}", error),
     };
 
-    let app_state = AppState {
-        db: Mutex::new(db)
-    };
+    let _app_state = web::Data::new(AppState {
+        db,
+    });
 
     // This initializes the env to run in info mode
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    env_logger::init_from_env(Env::default().default_filter_or("debug"));
     HttpServer::new(move || {
         App::new()
+            .app_data(_app_state.clone())
             .configure(user::router::config)
             .wrap(Logger::default())
     })

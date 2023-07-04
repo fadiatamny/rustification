@@ -8,20 +8,20 @@ pub async fn list(db: &DatabaseConnection) -> Result<Vec<UserModel>, DbErr> {
 }
 
 pub async fn query(db: &DatabaseConnection, model: ModelQuery) -> Result<Vec<UserModel>, DbErr> {
-    let mut rootFinder = User::find();
+    let mut root_finder = User::find();
 
     if model.id.is_some() {
-        rootFinder = rootFinder.filter(<User as sea_orm::EntityTrait>::Column::Id.eq(model.id));
+        root_finder = root_finder.filter(<User as sea_orm::EntityTrait>::Column::Id.eq(model.id));
     }
     if model.email.is_some() {
-        rootFinder = rootFinder.filter(<User as sea_orm::EntityTrait>::Column::Email.contains(model.email.unwrap().as_str()));
+        root_finder = root_finder.filter(<User as sea_orm::EntityTrait>::Column::Email.contains(model.email.unwrap().as_str()));
     }
     if model.created_at.is_some() {
-        rootFinder = rootFinder.filter(<User as sea_orm::EntityTrait>::Column::CreatedAt.eq(model.created_at));
+        root_finder = root_finder.filter(<User as sea_orm::EntityTrait>::Column::CreatedAt.eq(model.created_at));
     }
     if model.updated_at.is_some() {
-        rootFinder = rootFinder.filter(<User as sea_orm::EntityTrait>::Column::UpdatedAt.eq(model.updated_at));
+        root_finder = root_finder.filter(<User as sea_orm::EntityTrait>::Column::UpdatedAt.eq(model.updated_at));
     }
 
-    return rootFinder.all(db).await;
+    return root_finder.all(db).await;
 }
